@@ -1,0 +1,165 @@
+---
+title: "Titanic Passenger Classification"
+author: "Shaikh Ibrahim Noman"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+
+# Loading libraries
+
+```{r, echo=FALSE}
+library(tidyverse) # Needed for visualizations
+library(caret) # Used for basic ml techniques such as classification or regression
+library(titanic) # Used to get the data set
+library(psych) # Used for descriptive statistics
+library(randomForest) # Used to build the model
+```
+
+
+# Titanic data
+
+## Loading and cleaning the data
+
+```{r}
+# Loading in the data
+titanic <- carData::TitanicSurvival
+
+# Removing the row names because we don't need them
+rownames(titanic) <- NULL
+
+# Removing the N/A values
+titanic <- na.omit(titanic)
+
+# Create a new categorical variable for Age_Category
+titanic$Age_Category <- NA
+
+# Define the age categories
+age_categories <- c("Child", "Adult", "Elderly")
+
+# Assign age categories based on age values
+titanic$Age_Category[titanic$age < 18] <- age_categories[1]  # Child
+titanic$Age_Category[titanic$age >= 18 & titanic$age < 65] <- age_categories[2]  # Adult
+titanic$Age_Category[titanic$age >= 65] <- age_categories[3]  # Elderly
+
+# Removing the age variable because we have the category variable
+titanic <- titanic[,-3]
+```
+
+## Descriptive Statistics
+
+```{r}
+stats.titanic <- describe(titanic)
+head(stats.titanic)
+```
+
+## Visualizations
+
+### Distribution of Class and Sex
+
+The plot below shows the relationship between the genders and which class they belong to. From this plot we can conclude that the majority of the passengers were male. 
+
+```{r}
+ggplot(titanic, aes(x = passengerClass, fill = sex)) +
+  geom_bar(position = "fill") +
+  labs(x = "Class", y = "Proportion", fill = "Sex") +
+  scale_fill_manual(values = c("female" = "orange", "male" = "lightblue")) +
+  theme_minimal()
+```
+
+## Survived or Not?
+
+The plot below compares the survival percentage based on class. As we know from history, only the people from the 1st and 2nd class survived. 
+
+```{r}
+
+ggplot(titanic, aes(x = passengerClass, fill = survived)) +
+  geom_bar(position = "fill") +
+  labs(x = "Class", y = "Proportion", fill = "Survived") +
+  scale_fill_manual(values = c("yes" = "yellow", "no" = "purple")) +
+  theme_minimal()
+
+```
+
+# Building a model
+
+## Splitting our data
+
+```{r}
+# Creating a train and a test set
+set.seed(7)
+train_index <- createDataPartition(titanic$survived, p = 0.8, list = FALSE)
+train <- titanic[train_index,]
+test <- titanic[-train_index,]
+```
+
+### Train vs. Test
+
+The geom_jitter() function in the ggplot2 library allows us to analyze relationships between two categorical variables. The plot below shows the relationship between our test and train sets. We can see that the majority of hour observations come from the training set which makes sense because we are using the training set to make calculations.
+
+```{r}
+# Using the geom_jitter() function because we have two categorical variables
+ggplot() +
+  geom_jitter(data = train, aes(x = sex, y = survived, color = "Training Set"), alpha = 0.5) +
+  geom_jitter(data = test, aes(x = sex, y = survived, color = "Test Set"), alpha = 0.5) +
+  labs(x = "Sex", y = "Survived", title = "Comparison of Test and Training Set") +
+  scale_color_manual(values = c("Training Set" = "blue", "Test Set" = "red"),
+                     labels = c("Training Set", "Test Set"))
+
+```
+
+## Random Forest Model
+
+```{r}
+set.seed(7)
+model <- randomForest(survived~.,data = train)
+summary(model)
+```
+
+### Visualizing the model
+
+The plot below shows how important each variable was when determining who survived. We can see that the most important variable was sex.
+
+```{r}
+varImpPlot(model)
+```
+
+### Testing the model on the test set
+
+As you can see below our model is approximately 81% accurate when compared to the test set. 
+
+```{r}
+# Predicting values based on our test set
+Prediction <- predict(model,test)
+test$predicted <- Prediction
+
+# Making a confusion matrix to test the accuracy
+CFM_test <- confusionMatrix(test$predicted, test$survived)
+CFM_test
+```
+
+
+### Testing the model on the train set
+
+When we compare our model to the train set it is approximately 78% accurate.
+
+```{r}
+# Predicting values based on our test set
+Prediction_train <- predict(model,train)
+train$predicted <- Prediction_train
+
+# Making a confusion matrix to test the accuracy
+CFM_train <- confusionMatrix(train$predicted, train$survived)
+CFM_train
+```
+
+
+# Conclusion
+
+This project gave me a brief introduction to classification models. Overall, the model was around 80% accurate, so I believe this was a success. It is also important to note that the more data you have, the more accurate your model will be because your data can be trained and tested on more observations. The next step would be to deploy this model so that it can be used in different situations. Check out the deploy file for more information.
+
+
+
