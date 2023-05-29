@@ -1,0 +1,235 @@
+---
+title: "Cost of a Heart Attack Procedure in Texas"
+author: "Ibrahim Noman"
+date: "2022-09-23"
+output: 
+  html_document:
+       toc: true
+       toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+# **Introduction**
+
+```{r, include-FALSE}
+hospital <- read.csv("Project1_hospitals.csv")
+View(hospital)
+```
+
+```{r, include=FALSE}
+library(dplyr)
+subset(hospital, Procedure.Heart.Attack.Quality !="Unknown")
+filter(hospital, Procedure.Heart.Attack.Quality !="Unknown")
+hospital_subset = filter(hospital, Procedure.Heart.Attack.Quality !="Unknown")
+```
+
+```{r, include = FALSE}
+hospitalTX <- hospital_subset[hospital_subset$Facility.State=="TX",]
+hospitalTX_1 <- filter(hospitalTX, Facility.Type !="Unknown")
+```
+
+The data set that I am going to research indicates different procedural costs for a heart attack at different hospitals in Texas. 
+The reason I picked Texas to research is that I want to look at a smaller sample and understand what the actual relationship is. For this, I created a subset that only accounts for values in Texas, and I also took out any unknown values.
+The data set gives me information about a specific hospital such as its location, ratings and different procedure costs. The goal of this data set is to provide information on quality, utilization, and costs for effective, informed decision-making.
+
+## **The variables researched**
+
+The variable I am researching is the Cost for a Heart Attack Procedure which ranges from a wide variety of numbers. As a result, I will compare it with other variables.
+
+The first variable I will compare it with is the Quality of the Heart Attack Procedure. This can range from lower, average or worse than the national quality of care for heart attacks.
+
+The second variable will be the overall rating of the facility. This can range from 1-5, with 1 being the worst and 5 being the best.
+
+My third and final variable will be what facility the hospital is run by. For example is the hospital run by a church, government, private facility or a proprietary.
+
+## **The source**
+The source of this data set is The Centers for Medicare & Medicaid Services which is a federal agency within the U.S Department of Health and Human Services. The goal of this agency is to administer Medicare, Medicaid and health insurance standards.
+For more information on where the data set was derived from visit 
+(https://data.medicare.gov/data/hospital-compare). 
+
+## **What I will be researching**
+
+I will focus on the cost of a heart attack procedure in Texas. To focus on Texas, I first made a subset that only shows the value for Texas. I will begin by giving the statistics for the variable itself. Then I will compare the cost with the quality of the procedure. After that I will analyze the comparison between the overall rating of the facility and the cost of the procedure. Lastly,I will research what type of different facilities run the hospitals and if that affects the cost of the procedure. 
+
+![Hospital](C:/Users/mehre/OneDrive/Documents/Project 1 Image.png)
+
+# **Cost of Procedure for a Heart Attack**
+
+Heart attack procedures are expensive for the average person. My goal is to understand why the cost is high and how that relates to other variables.
+
+The average cost of a heart attack in all of the hospitals in Texas is `r mean(hospitalTX_1$Procedure.Heart.Attack.Cost)`, the median cost is `r median(hospitalTX_1$Procedure.Heart.Attack.Cost)`, and the five number summary is `r fivenum(hospitalTX_1$Procedure.Heart.Attack.Cost)`.
+
+
+The graph below shows the distribution of the cost of a heart attack procedure in different hospitals within Texas. 
+
+The graph below has a range of `r max(hospitalTX_1$Procedure.Heart.Attack.Cost, na.rm=TRUE)- min(hospitalTX_1$Procedure.Heart.Attack.Cost,na.rm=TRUE)` and, the standard deviation is `r sd(hospitalTX_1$Procedure.Heart.Attack.Cost, na.rm=TRUE)`. 
+
+```{r, echo= FALSE}
+library(ggplot2)
+ggplot(data=hospitalTX_1) +
+  geom_histogram(aes(x=Procedure.Heart.Attack.Cost), binwidth = 700,
+                 fill="#45f542",) +
+    labs(title = "Cost Variance of a Heart Attack Procedure in Texas", y= "Count of Hospitals", x= "Cost of Procedure")
+```
+
+# **Comparison between the Cost and the Quality**
+
+Each hospital in the State of Texas is ranked on based on the quality of their Heart Attack Procedure. The quality can either be lower, average or worse in comparison to the national quality of care for heart attacks. 
+
+## **Average Cost of Procedure per Quality of Care**
+
+From the table below we can see the results are quite surprising. The average cost for a procedure that is ranked below the national quality is approximately $25,041. However, for procedures that are considered average, their average cost is approximately $24,624. It's important to be careful because a low quality procedure can possibly cost you more than a average quality procedure.
+
+```{r message=FALSE}
+library(knitr)
+library(tidyverse)
+hospitalTX_1 %>%
+  group_by(Procedure.Heart.Attack.Quality) %>%
+  summarize(Hospitals=n(),Mean.Cost.Procedure=mean(Procedure.Heart.Attack.Cost,na.rm=TRUE)) %>%
+  kable(caption = "Average Cost by Quality",col.names=c("Quality","Hospitals", "Mean Cost of Procedure"))
+```
+
+
+## **Median Cost of Procedure per Quality of Care**
+
+As you can see, the median cost for a procedure that is considered average is $24,431. While for a below average procedure the cost is $24,252. The disparity between the two is very small.
+
+```{r message=FALSE}
+library(knitr)
+library(tidyverse)
+hospitalTX_1 %>%
+  group_by(Procedure.Heart.Attack.Quality) %>%
+  summarize(Hospitals=n(),Median.Cost.Procedure=median(Procedure.Heart.Attack.Cost,na.rm=TRUE)) %>%
+  kable(caption = "Median Cost by Quality",col.names=c("Quality","Hospitals", "Median Cost of Procedure"))
+```
+
+
+## **Graph**
+
+From this graph we can see that as the price of the procedure goes up, the quality also goes up. This makes sense because one shouldn't pay more for a procedure that's ranked below the national quality care.
+
+It's also important to note that there aren't many procedures that are ranked below the national quality. This is a good sign because it shows how our healthcare is progressing every year.
+
+```{r, echo=FALSE}
+library(ggplot2)
+ggplot(data=hospitalTX) +
+  geom_boxplot(mapping=aes(x=Procedure.Heart.Attack.Cost, 
+                           y= Procedure.Heart.Attack.Quality, fill=Procedure.Heart.Attack.Quality,),alpha=.25,) +
+  labs(title= "Cost of a Heart Attack Procedure at Different Hospitals", x= "Cost", y= "Quality", fill="Quality")
+```
+
+
+# **Does the rating of the facility affect the cost of the procedure?**
+
+Each facility is rated between 1-5. With 1 being the worst and 5 being the best. This is the overall rating of the facility in Texas.
+
+## **Average cost based on the rating of the hospital**
+
+The table below proves that a higher quality doesn't really mean higher price. The highest average cost is at facilities that are ranked a 2. However, the second highest cost goes to facilities ranked a 5. 
+
+```{r message=FALSE}
+library(knitr)
+library(tidyverse)
+hospitalTX_1 %>%
+  group_by(factor(Rating.Overall)) %>%
+  summarize(Hospitals=n(),Mean.Cost.Procedure=mean(Procedure.Heart.Attack.Cost,na.rm=TRUE)) %>%
+  kable(caption = "Average Cost by Rating",col.names=c("Rating","Hospitals", "Mean Cost of Procedure"))
+```
+
+## **Does the rating affect the median cost?**
+
+The rating does not affect the median cost. We can see that hospitals with a rating of 2 have the highest median cost of $24,635.
+
+```{r message=FALSE}
+library(knitr)
+library(tidyverse)
+hospitalTX_1 %>%
+  group_by(factor(Rating.Overall)) %>%
+  summarize(Hospitals=n(),Median.Cost.Procedure=median(Procedure.Heart.Attack.Cost,na.rm=TRUE)) %>%
+  kable(caption = "Median Cost by Rating",col.names=c("Rating","Hospitals", "Median Cost of Procedure"))
+```
+
+## **Graph**
+
+The graph below indicates that as the overall facility rating increases the cost of the procedure also increases.
+
+
+```{r, echo=FALSE}
+library(ggplot2)
+ggplot(data=hospitalTX_1) +
+  geom_boxplot(mapping=aes(x=Procedure.Heart.Attack.Cost, 
+                           y= factor(Rating.Overall),  fill=Rating.Overall,),alpha=.25,) +
+  labs(title= "Does the Facility Rating affect the Cost of the Procedure?", x= "Cost", y= "Rating", fill="Rating")
+```
+
+# **Cost of Treatment vs. Facility Type**
+
+Of course the procedure for a heart failure takes place in a hospital, however this variable determines what the hospital is run by. Is it a church, government, private or a propriety
+
+## **Average cost in different facilities**
+
+Below is the mean cost of a Heart Failure Treatment in varying facility types.
+
+From here we can see that hospitals that are run by private entities have the highest average cost, and the lowest cost goes to facilites ran by churches.
+
+
+```{r, echo=FALSE}
+library(knitr)
+library(tidyverse)
+hospitalTX_1 %>%
+  group_by(Facility.Type) %>%
+  summarize(Facilities=n(),Mean.Cost.Procedure=round(mean(Procedure.Heart.Attack.Cost,na.rm=TRUE,),2)) %>%
+  kable(caption = "Average Cost by Facility",col.names=c("Facilities","Hospitals", "Mean Cost of Procedure"))
+```
+
+## **Median cost in different facilities**
+
+From the table below we can see that hospitals ran by proprieties have the highest median cost.
+```{r, echo=FALSE}
+library(knitr)
+library(tidyverse)
+hospitalTX_1 %>%
+  group_by(Facility.Type) %>%
+  summarize(Facilities=n(),Median.Cost.Procedure=median(Procedure.Heart.Attack.Cost,na.rm=TRUE,)) %>%
+  kable(caption = "Median Cost by Facility",col.names=c("Facilities","Hospitals", "Median Cost of Procedure"))
+```
+## **Graph**
+
+The graph below shows the relationship between the different facilities and the cost of the procedure for a heart attack.
+
+From here we can see that the most expensive procedures tend to happen in hospitals ran by church, and the least expensive procedures happen in hospitals ran by the government.
+
+```{r, echo=FALSE}
+library(ggplot2)
+ggplot(data=hospitalTX_1) +
+  geom_boxplot(mapping=aes(x=Procedure.Heart.Attack.Cost, 
+                           y= Facility.Type,  fill=Facility.Type,),alpha=.25,) +
+  labs(title= "Comparison between Facility Type and Procedure Cost", x= "Cost", y= "Type of Facility", fill="Type")
+```
+
+
+# **Conclusion**
+
+In this project I explained how the cost of a hear attack procedure in Texas is affected by different variables. 
+I first researched if the quality affected the cost of the procedure, and found out that the average cost below average hospitals cost more than average.  
+Then I found out the relationship between the overall rating of a facility compared to the cost of the procedure. In this comparison I found out that lower rated hospitals can cost more than high ranking hospitals.
+Lastly, I compared the overall rating of a facility with the cost of the procedure. I found out that hospitals that are run by private entities cost the highest.
+
+## **Future areas of Research**
+
+Some future areas of research could be linked with just expanding your data. For me, I created subsets to just focus on the hospitals in Texas, but one can always look at a broader picture.
+Another area of research could be looking at the experience rating which is the rating that the patients give after receiving a procedure. It would be a interesting comparison between the cost and patient rating.
+
+## **Citations**
+(“Hospital Comparison.” PQDC, https://data.cms.gov/provider-data/?redirect=true.)
+
+(“Download the Data.” USDA ERS - Download the Data, https://www.ers.usda.gov/data-products/food-access-research-atlas/download-the-data/.) 
+
+---
+
+
+
