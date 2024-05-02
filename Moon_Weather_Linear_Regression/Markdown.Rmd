@@ -1,0 +1,264 @@
+---
+title: "Moon VS. Weather Patterns"
+author: "Ibrahim Noman"
+date: "2024-04-29"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Libraries
+
+```{r, include = FALSE}
+library(tidyverse)
+library(lubridate)
+library(MASS)
+```
+
+# Data Cleaning
+
+## Loading in data
+
+```{r}
+moon_data <- read.csv('moon_data.csv')
+weather_data <- read.csv('Wildfire_Weather_Merged_new.csv')
+```
+
+Since we only want the records for 2022, we will need to manipulate our weather_data. Our moon data starts for January 2nd, 2022, so we will filter it to that.
+
+```{r}
+# Filtering for 2022
+weather_22 <- weather_data %>% 
+  filter(Date >= '2022-01-02') %>% 
+  dplyr::select('Date', 'County', 'tmax', 'tmin', 'tavg', 'prcp')
+
+# Removing unnecessary column in moon data
+moon_data <- moon_data[ ,-1]
+```
+
+## Joining data
+
+Joining the data on the date column
+
+```{r}
+# Fixing Date
+moon_data$Date <- ymd(moon_data$Date)
+weather_22$Date <- ymd(weather_22$Date)
+
+# Join
+data <- full_join(moon_data, weather_22, by = 'Date')
+
+# Quick Cleaning
+data <- data %>% 
+  dplyr::select(-c('Date', 'Time', 'County')) %>% 
+  mutate(Phase_Factor = case_when(Moon_Phase == 'New Moon' ~ 1,
+                                  Moon_Phase == 'First Quarter' ~ 2,
+                                  Moon_Phase == 'Full Moon' ~ 3, 
+                                  Moon_Phase == 'Last Quarter' ~ 4)) %>% 
+  na.omit()
+```
+
+# Exploratory Data Analysis
+
+Now that our data has been cleaned, we can start analyzing the different predictors.
+
+## Plots
+
+```{r}
+# Scatter plot Matrix
+plot_data <- data %>% 
+  dplyr::select(-c('Moon_Phase'))
+
+pairs(plot_data)
+```
+
+### Temperature and Precipitation
+
+From the plot below, we can see that there isn't a clear linear relationship between Rain and Temperature.
+
+```{r}
+ggplot(plot_data) + aes(x = tavg, y = prcp) + geom_point(color = 'cadetblue') + theme_gray() + labs(x = 'Average temperature', y = 'Precipitation', title = 'Precipitation VS. Average Temperature')
+```
+
+### Moon Phases
+
+First we need to see what the distributions of the different phases looks like. If you remember earlier, we converted the phases into the factor type. This will help us later in our linear regression.
+
+We can see that there is no bias in our phase distributions. we have an equal amount of frequency for all 4 phases.
+
+```{r}
+ggplot(plot_data) + aes(x = Phase_Factor) + geom_histogram(fill = 'cornsilk4') + theme_gray() + labs(x = 'Moon Phases', y = 'Frequency', title = 'Distribution of the Moon Phases')
+```
+
+#### Precipitation
+
+Now let's try to explore the relationships with temperature and precipitation. From the plot below we can see that:
+
+- Majority of rain happens during the first quarter (2)
+
+- The least amount of rain happens during the last quarter (4)
+
+```{r}
+ggplot(plot_data) + aes(x = Phase_Factor, y = prcp) + geom_point(color = 'orangered') + theme_gray() + labs(x = 'Moon Phases', y = 'Precipitation', title = 'Precipitation VS. Moon Phases')
+```
+
+#### Temperature
+
+The plot below shows that the relationship between average temperature and and Moon phases is roughly constant. There aren't any strong differences.
+
+```{r}
+ggplot(plot_data) + aes(x = Phase_Factor, y = tavg) + geom_point(color = 'palegreen3') + theme_gray() + labs(x = 'Moon Phases', y = 'Average Temperature', title = 'Average Temperature VS. Moon Phases')
+```
+
+Now, let's explore when the temperature is the lowest/maximum.
+
+```{r}
+ggplot(plot_data) + aes(x = Phase_Factor, y = tmin) + geom_point(color = 'steelblue3') + theme_gray() + labs(x = 'Moon Phases', y = 'Lowest Temperature', title = 'Lowest Temperature VS. Moon Phases')
+```
+
+```{r}
+ggplot(plot_data) + aes(x = Phase_Factor, y = tmax) + geom_point(color = 'yellow4') + theme_gray() + labs(x = 'Moon Phases', y = 'Highest Temperature', title = 'Highest Temperature VS. Moon Phases')
+```
+
+From the plots above we notice:
+
+- Temperature varies the most during the New Moon (1) and the Last Quarter (4).
+
+- Temperature remains roughly the same for the First Quarter (2) and the Full Moon (3)
+
+# Linear Regression
+
+Now let's understand if there is any linear relationship when predicting rainfall.
+
+```{r}
+# Taking out Moon Phases since I changed them to categorical
+model_data <- data %>% 
+  dplyr::select(-c('Moon_Phase'))
+
+model_data$Phase_Factor <- as.factor(model_data$Phase_Factor)
+
+# Model
+model <- lm(prcp ~., data = model_data)
+summary(model)
+```
+
+After constructing the first model, we can see that only the Moon phases turn out to statistically significant.  Let's see if the Regression Assumptions hold true.
+
+## Linear Assumptions
+
+### Linearity + Constant Variance
+
+From the residual plots below we can see that the variance isn't constant. There are some patterns that need to be fixed.
+
+```{r}
+# Residuals vs. Predictor Variables
+par(mfrow = c(2,2))
+plot(x = model_data$tmax, y = model$residuals)
+plot(x = model_data$tmin, y = model$residuals)
+plot(x = model_data$tavg, y = model$residuals)
+plot(x = model_data$Phase_Factor, y = model$residuals)
+```
+
+### Gaussianity 
+
+Same can be said for the Gaussian assumption, since the top tail deviates quite significantly.
+
+```{r}
+qqnorm(model$residuals)
+qqline(model$residuals, col = 'red')
+```
+
+# Fixing
+
+To fix the issues mentioned above we will try the following things:
+
+- Apply transformations
+
+- Split the data into training and test sets
+
+```{r}
+# Accounting for 0 prcp values
+model_data_2 <- model_data
+model_data_2$prcp <- log(model_data$prcp + 0.01)
+
+# Number of observations
+n = nrow(model_data_2)
+
+# 70% to train
+n_train = n * 0.7
+
+# Creating Indices
+train <- sample(x = 1:n, size = n_train)
+
+train_set <- model_data_2[train, ]
+test_set <- model_data_2[-train, ]
+
+# Model
+model_2 = lm(prcp ~ tavg + Phase_Factor, data = train_set)
+summary(model_2)
+```
+After applying the log transformation we can see that the average temperature is now significant in the model.
+
+Even after transforming the data, we can see that the constant variance assumption does not hold, however the Gaussian Assumption looks a lot better.
+
+```{r}
+par(mfrow = c(2,2))
+plot(x = train_set$tavg, y = model_2$residuals)
+plot(x = train_set$Phase_Factor, y = model_2$residuals)
+
+qqnorm(model_2$residuals)
+qqline(model_2$residuals, col = 'red')
+```
+
+## Boxcox
+
+Let's now try the Box Cox transformation which might help us get the job done.
+
+```{r}
+# Creating new df
+box_data <- model_data %>% 
+  mutate(prcp = prcp + 0.01)
+
+# Splitting data
+train_box <- box_data[train, ]
+
+# Boxcox
+b <- boxcox(lm(prcp ~ tavg + Phase_Factor, data = train_box))
+lambda <- b$x[which.max(b$y)]
+
+# Transforming prcp
+train_box$prcp_transformed <- (train_box$prcp^lambda - 1) / lambda
+```
+
+From the summary table below we can see that not much changed.
+
+```{r}
+# Model
+model_3 <- lm(prcp_transformed ~ tavg + Phase_Factor, data = train_box)
+summary(model_3)
+```
+
+Same can be said for the assumptions.
+
+```{r}
+# Residul Plots
+par(mfrow = c(2,2))
+plot(x = train_box$tavg, y = model_3$residuals)
+plot(x = train_box$Phase_Factor, y = model_3$residuals)
+
+# Gaussian
+qqnorm(model_3$residuals)
+qqline(model_3$residuals, col = 'red')
+```
+
+# Conclusion
+
+I don't really see this project as a failure. I tried exploring if there is a linear relationship that could help predict rain. As our plots showed early on, there was no linear relationship. Even after applying transformations and splitting data the assumptions still didn't uphold.
+
+# Future
+
+There is definitely a relationship, and in the future it will be important to eexplore non-linear relationships.
