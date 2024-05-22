@@ -1,7 +1,6 @@
 import streamlit as st
 import pdfplumber as pd
 from transformers import pipeline
-# from transformers import T5Tokenizer, T5ForConditionalGeneration
 
 # Initializing LLM
 qa_pipeline = pipeline("question-answering", model="deepset/roberta-base-squad2")
